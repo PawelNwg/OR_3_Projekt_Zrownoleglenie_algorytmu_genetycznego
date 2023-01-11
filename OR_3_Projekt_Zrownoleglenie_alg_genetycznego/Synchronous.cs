@@ -1,9 +1,10 @@
 ﻿// zalozenia: stałe wartośći przy zmiennych x algorytow np S = 3, 3*x1^2 + 1*x2^2 
 
+using System.Diagnostics;
 using System.Text;
 
-int polynominalsCount = 16; // S
-int algorithmIterations = (int)(1024 * 1024 / polynominalsCount) - (polynominalsCount + 10); // N
+int polynominalsCount = 1024; // S
+int algorithmIterations = 10024;// (int)(1024 * 1024 / polynominalsCount) - (polynominalsCount + 10); // N
 
 double percentPopulationToMutate = 0.1;
 double percentPopulationToCrossover = 0.1;
@@ -13,11 +14,14 @@ Random random = new Random();
 Polynominal[] polynominals = new Polynominal[polynominalsCount];
 int k = 1;
 
-for (int algorithmIteration = 0; algorithmIteration < algorithmIterations; algorithmIteration++)
+var stopwatch = new Stopwatch();
+stopwatch.Start();
+
+for (int algorithmIteration = 0; algorithmIteration < algorithmIterations; algorithmIteration++, k++)
 {
     if (k == 1)
         polynominals = PrepareFirstGeneration();
-
+    
     polynominals = MautatePolynominals(polynominals);
     polynominals = CrossoverPolynominals(polynominals);
     polynominals = CalculateFitness(polynominals);
@@ -25,8 +29,10 @@ for (int algorithmIteration = 0; algorithmIteration < algorithmIterations; algor
     polynominals = FillPolynominals(polynominals, polynominals.First().Elements.Select(x => x.Coefficient).ToList());
     polynominals = CalculateFitness(polynominals); // only to display, can be removed
     PrintPolynominals(polynominals);
-    k++;
 }
+
+stopwatch.Stop();
+Console.WriteLine("Time taken: " + stopwatch.Elapsed.ToString(@"m\:ss\.fff" + "s"));
 
 Polynominal[] FillPolynominals(Polynominal[] polynominals, List<Double> coefficients)
 {
