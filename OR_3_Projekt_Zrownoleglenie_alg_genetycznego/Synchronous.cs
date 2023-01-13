@@ -12,12 +12,11 @@ double percentPopulationToPromoteToNextGeneration = 0.8;
 
 Random random = new Random();
 Polynominal[] polynominals = new Polynominal[polynominalsCount];
-int k = 1;
 
 var stopwatch = new Stopwatch();
 stopwatch.Start();
 
-for (int algorithmIteration = 0; algorithmIteration < algorithmIterations; algorithmIteration++, k++)
+for (int algorithmIteration = 0, k = 1; algorithmIteration < algorithmIterations; algorithmIteration++, k++)
 {
     if (k == 1)
         polynominals = PrepareFirstGeneration();

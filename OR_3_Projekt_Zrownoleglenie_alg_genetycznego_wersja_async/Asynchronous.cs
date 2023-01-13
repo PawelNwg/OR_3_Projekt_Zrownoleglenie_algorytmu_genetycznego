@@ -1,133 +1,158 @@
-﻿using System.Collections.Concurrent;
+﻿using OR_3_Projekt_Zrownoleglenie_alg_genetycznego_wersja_async;
+using OR_3_Projekt_Zrownoleglenie_alg_genetycznego_wersja_async.Processing;
+using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Text;
 
-int polynominalsCount = 10000; // S
-int algorithmIterations = 10024;// (int)(1024 * 1024 / polynominalsCount) - (polynominalsCount + 10); // N
+int polynominalsCount = 1024; // S
+int algorithmIterations = 1024;// (int)(1024 * 1024 / polynominalsCount) - (polynominalsCount + 10); // N
 
 double percentPopulationToMutate = 0.1;
 double percentPopulationToCrossover = 0.1;
 double percentPopulationToPromoteToNextGeneration = 0.8;
 
 Random random = new Random();
+Polynominal[] polynominals = new Polynominal[polynominalsCount];
 
 var stopwatch = new Stopwatch();
 stopwatch.Start();
 
-Polynominal[] polynominals = new Polynominal[polynominalsCount];
+var source = Enumerable.Range(0, Configuration.algorithmIterations).ToArray();
+var rangePartitioner = Partitioner.Create(0, source.Length);
+int k = 1;
 
-polynominals = PrepareFirstGenerationParallel_v3();
+// zamiast przetwarzac cala kolekcje tzn alorytm to mozna podzielic kolekcje wielomianow na grupy i przetwarzac w grupach wywolac liniowa metode 5 razy zamiast raz 
 
+Parallel.ForEach(rangePartitioner, (range, loopState) =>
+{
+    for (int i = range.Item1; i < range.Item2; i++)
+    {
+        if (k == 1)
+            polynominals = PrepareFirstGeneration();
+
+        polynominals = MautatePolynominals(polynominals); // zmienna globalna mozna zrobic mniejsze 
+        polynominals = CrossoverPolynominals(polynominals);
+        polynominals = CalculateFitness(polynominals);
+        polynominals = SelectBestPolynominals(polynominals);
+        polynominals = FillPolynominals(polynominals, polynominals.First().Elements.Select(x => x.Coefficient).ToList());
+        //polynominals = CalculateFitness(polynominals); // only to display, can be removed
+        //PrintPolynominals(polynominals);
+        k++;
+    }
+});
+
+//for (int algorithmIteration = 0, z = 1; algorithmIteration < algorithmIterations; algorithmIteration++, z++)
+//{
+//    if (z == 1)
+//        polynominals = PrepareFirstGeneration();
+
+//    polynominals = MautatePolynominals(polynominals);
+//    polynominals = CrossoverPolynominals(polynominals);
+//    polynominals = CalculateFitness(polynominals);
+//    polynominals = SelectBestPolynominals(polynominals);
+//    polynominals = FillPolynominals(polynominals, polynominals.First().Elements.Select(x => x.Coefficient).ToList());
+//    //polynominals = CalculateFitness(polynominals); // only to display, can be removed
+//    //PrintPolynominals(polynominals);
+//}
 
 stopwatch.Stop();
 Console.WriteLine("Time taken: " + stopwatch.Elapsed.ToString(@"m\:ss\.fff" + "s"));
 
-Polynominal[] PrepareFirstGenerationParallel_v1() // Time taken: 0:17.33817 per 10000 iterations
+Polynominal[] FillPolynominals(Polynominal[] polynominals, List<Double> coefficients)
 {
-    var polynominals = new ConcurrentBag<Polynominal>();
+    if (polynominals.Length == polynominalsCount)
+        return polynominals;
 
-    Parallel.For(0, polynominalsCount, new ParallelOptions { MaxDegreeOfParallelism = 30 }, (i, state) =>
-     {
-         Polynominal polynominal = new Polynominal();
-
-         var polynominalElements = new ConcurrentBag<PolynominalElement>();
-         Parallel.For(0, polynominalsCount - 1, new ParallelOptions { MaxDegreeOfParallelism = 30 }, j =>
-         {
-             polynominalElements.Add(new PolynominalElement()
-             { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
-         });
-
-         polynominal.Elements = polynominalElements.ToList();
-         polynominals.Add(polynominal);
-     });
-
-    return polynominals.ToArray();
-}
-
-Polynominal[] PrepareFirstGenerationParallel_v2() // Time taken: 0:16.15816 per 1000 iterations
-{
-    var polynominals = new ConcurrentBag<Polynominal>();
-
-    Parallel.For(0, polynominalsCount, (i, state) =>
+    var polynominalsToFill = polynominalsCount - polynominals.Length;
+    Polynominal[] newPolynominals = new Polynominal[polynominalsToFill];
+    for (int i = 0; i < polynominalsToFill; i++)
     {
-        Polynominal polynominal = new Polynominal();
-
-        var polynominalElements = new ConcurrentBag<PolynominalElement>();
+        var newPolynominal = new Polynominal();
         for (int j = 0; j < polynominalsCount - 1; j++)
         {
-            polynominalElements.Add(new PolynominalElement()
-            { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
+            newPolynominal.Elements.Add(new PolynominalElement()
+            { Coefficient = coefficients[j], Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
         }
-
-        polynominal.Elements = polynominalElements.ToList();
-        polynominals.Add(polynominal);
-    });
-
-    return polynominals.ToArray();
+        newPolynominals[i] = newPolynominal;
+    }
+    return polynominals.Union(newPolynominals).ToArray();
 }
 
-Polynominal[] PrepareFirstGenerationParallel_v3() // Time taken: 0:11.97411 per 1000 iterations
+Polynominal[] SelectBestPolynominals(Polynominal[] polynominals)
 {
-    var polynominals = new ConcurrentBag<Polynominal>();
+    int numberOfPolynominalsToPromoteToNextGeneration = (int)(polynominals.Length * percentPopulationToPromoteToNextGeneration);
+    if (numberOfPolynominalsToPromoteToNextGeneration == 0)
+        return polynominals;
 
-    Parallel.For(0, polynominalsCount, i =>
+    return polynominals.OrderBy(x => x.FintessValue).Take(numberOfPolynominalsToPromoteToNextGeneration).ToArray();
+}
+
+Polynominal[] CrossoverPolynominals(Polynominal[] polynominals)
+{
+    int numberOfPolynominalsToCrossover = (int)(polynominals.Length * percentPopulationToCrossover);
+    if (numberOfPolynominalsToCrossover == 0)
+        return polynominals;
+
+    for (int i = 0; i < numberOfPolynominalsToCrossover; i++)
     {
-        polynominals.Add(CreatePolynominalParallel_v3());
-    });
-
-    return polynominals.ToArray();
+        polynominals[i] = CrossoverPolynominal(polynominals.OrderBy(x => random.Next()).Take(2).ToList());
+    }
+    return polynominals;
 }
 
-
-async Task<Polynominal[]> PrepareFirstGenerationParallel_v4()
+Polynominal CrossoverPolynominal(List<Polynominal> polynominals)
 {
-    Polynominal[] polynominals = await Task.WhenAll(CreatePolynominalParallel_v1());
+    var parentOne = polynominals[0];
+    var parentTwo = polynominals[1];
+    int numberOfElements = parentOne.Elements.Count;
+    int placeOfCrossover = numberOfElements / 2;
+    int numerOfDataFromParentOne = placeOfCrossover;
+    int numerOfDataFromParentTwo = numberOfElements - placeOfCrossover;
+    List<PolynominalElement> parentOneData = parentOne.Elements.GetRange(0, numerOfDataFromParentOne);
+    List<PolynominalElement> parentTwoData = parentTwo.Elements.GetRange(numerOfDataFromParentOne, numerOfDataFromParentTwo);
+
+    return new Polynominal() { Elements = parentOneData.Union(parentTwoData).ToList(), FintessValue = 0.0 };
+}
+
+Polynominal[] MautatePolynominals(Polynominal[] polynominals)
+{
+    int numberOfPolynominalsToMutate = (int)(polynominals.Length * percentPopulationToMutate);
+    if (numberOfPolynominalsToMutate == 0)
+        return polynominals;
+
+    for (int i = 0; i < numberOfPolynominalsToMutate; i++)
+    {
+        var index = random.Next(0, polynominals.Length);
+        polynominals[index] = MutatePolynominal(polynominals[i]);
+    }
+    return polynominals;
+}
+
+Polynominal MutatePolynominal(Polynominal polynominal)
+{
+    foreach (var element in polynominal.Elements)
+    {
+        element.Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0);
+    }
+    return polynominal;
+}
+
+Polynominal[] CalculateFitness(Polynominal[] polynominals)
+{
+    foreach (var (polynominal, index) in polynominals.WithIndex())
+    {
+        var tempSum = 0.0;
+        foreach (var element in polynominal.Elements)
+        {
+            tempSum += element.Coefficient * element.Exponent;
+        }
+        polynominal.FintessValue = tempSum;
+    }
 
     return polynominals;
 }
 
-Task<Polynominal> CreatePolynominalParallel_v1()
-{
-    Polynominal polynominal = new Polynominal();
-    for (int j = 0; j < polynominalsCount - 1; j++)
-    {
-        polynominal.Elements.Add(new PolynominalElement()
-        { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
-    }
-    return Task.FromResult(polynominal);
-}
-
-Polynominal CreatePolynominalParallel_v2() // Time taken: 0:11.97411 per 1000 iterations
-{
-    Polynominal polynominal = new Polynominal();
-    for (int j = 0; j < polynominalsCount - 1; j++)
-    {
-        polynominal.Elements.Add(new PolynominalElement()
-        { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
-    }
-    return polynominal;
-}
-
-
-Polynominal CreatePolynominalParallel_v3() // Time taken: 0:01.0991 per 1000 iterations
-{
-    Polynominal polynominal = new Polynominal();
-
-    var polynominalElements = new ConcurrentBag<PolynominalElement>();
-
-    var source = Enumerable.Range(0, polynominalsCount - 1).ToArray();
-    var rangePartitioner = Partitioner.Create(0, source.Length);
-
-    Parallel.ForEach(rangePartitioner, (range, loopState) =>
-    {
-        polynominalElements.Add(new PolynominalElement()
-        { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
-    });
-
-    polynominal.Elements = polynominalElements.ToList();
-    return polynominal;
-}
-
-Polynominal[] PrepareFirstGeneration() // Time taken: 0:12.37812 per 1000 iterations
+Polynominal[] PrepareFirstGeneration()
 {
     Polynominal[] polynominals = new Polynominal[polynominalsCount];
     for (int i = 0; i < polynominalsCount; i++)
@@ -143,6 +168,21 @@ Polynominal[] PrepareFirstGeneration() // Time taken: 0:12.37812 per 1000 iterat
     return polynominals;
 }
 
+void PrintPolynominals(Polynominal[] polynominals)
+{
+    StringBuilder stringBuilder = new StringBuilder();
+    for (int i = 0; i < polynominalsCount; i++)
+    {
+        stringBuilder.Append($"Wielomian {i}: ");
+        for (int j = 0; j < polynominals[i].Elements.Count; j++)
+        {
+            stringBuilder.Append($"{Math.Round(polynominals[i].Elements[j].Coefficient, 2)} * x^{j} + ");
+        }
+        stringBuilder.Append($", fitness: {Math.Round(polynominals[i].FintessValue, 3)}");
+        stringBuilder.Append("\n");
+    }
+    Console.WriteLine(stringBuilder.ToString());
+}
 
 public class Polynominal
 {
@@ -155,3 +195,11 @@ public class PolynominalElement
     public double Coefficient { get; set; }
     public double Exponent { get; set; }
 }
+
+public static class EnumExtension
+{
+    public static IEnumerable<(T item, int index)> WithIndex<T>(this IEnumerable<T> self)
+       => self.Select((item, index) => (item, index));
+}
+
+
