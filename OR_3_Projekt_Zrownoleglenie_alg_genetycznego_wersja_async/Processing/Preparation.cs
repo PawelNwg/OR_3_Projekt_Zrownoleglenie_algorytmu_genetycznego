@@ -120,10 +120,10 @@ namespace OR_3_Projekt_Zrownoleglenie_alg_genetycznego_wersja_async
             return polynominal;
         }
 
-        public static Polynominal[] PrepareFirstGeneration() // Time taken: 0:12.37812 per 1000 iterations
+        public static Polynominal[] PrepareFirstGeneration(int polinominalsToGenerate) // Time taken: 0:12.37812 per 1000 iterations
         {
-            Polynominal[] polynominals = new Polynominal[Configuration.polynominalsCount];
-            for (int i = 0; i < Configuration.polynominalsCount; i++)
+            Polynominal[] polynominals = new Polynominal[polinominalsToGenerate];
+            for (int i = 0; i < polinominalsToGenerate; i++)
             {
                 polynominals[i] = new Polynominal();
                 for (int j = 0; j < Configuration.polynominalsCount - 1; j++)
@@ -131,6 +131,7 @@ namespace OR_3_Projekt_Zrownoleglenie_alg_genetycznego_wersja_async
                     polynominals[i].Elements.Add(new PolynominalElement()
                     { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
                 }
+                Console.WriteLine(i);
             }
 
             return polynominals;
