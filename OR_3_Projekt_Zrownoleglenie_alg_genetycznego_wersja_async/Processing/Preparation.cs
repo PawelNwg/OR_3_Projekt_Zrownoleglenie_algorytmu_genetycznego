@@ -131,7 +131,7 @@ namespace OR_3_Projekt_Zrownoleglenie_alg_genetycznego_wersja_async
                     polynominals[i].Elements.Add(new PolynominalElement()
                     { Coefficient = random.NextDouble(), Exponent = random.NextDouble() * (1.0 - (-1.0)) + (-1.0) });
                 }
-                Console.WriteLine(i);
+                //Console.WriteLine(i);
             }
 
             return polynominals;

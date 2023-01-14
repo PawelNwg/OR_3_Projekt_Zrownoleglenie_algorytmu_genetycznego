@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Text;
 
 int polynominalsCount = 1024; // S
-int algorithmIterations = 10024;// (int)(1024 * 1024 / polynominalsCount) - (polynominalsCount + 10); // N
+int algorithmIterations = 1024;// (int)(1024 * 1024 / polynominalsCount) - (polynominalsCount + 10); // N
 
 double percentPopulationToMutate = 0.1;
 double percentPopulationToCrossover = 0.1;
