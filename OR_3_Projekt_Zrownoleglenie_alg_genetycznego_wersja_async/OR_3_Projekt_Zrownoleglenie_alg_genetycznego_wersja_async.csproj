@@ -7,19 +7,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Update="async.Designer.cs">
-      <DesignTime>True</DesignTime>
-      <AutoGen>True</AutoGen>
-      <DependentUpon>async.txt</DependentUpon>
-    </Compile>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="async.txt">
-      <Generator>MSDataSetGenerator</Generator>
-      <LastGenOutput>async.Designer.cs</LastGenOutput>
-    </None>
-  </ItemGroup>
-
 </Project>
